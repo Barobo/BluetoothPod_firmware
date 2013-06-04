@@ -147,8 +147,18 @@ void serialHandler()
         //serialWriteByte(0x80);
         //TWISend(0x01, buf, buf[1]);
         //TWIWait();
-        memcpy(g_twi_send_prebuf, buf, buf[1]);
-        g_twi_send_prebuf_n = serialBufferIndex;
+        /* The message we receive here will be the "inner" message, minus the
+         * zigbee address and channel. Here, we have to append/prepend the
+         * zigbee portion of the message before passing it on to the Linkbot.
+         * */
+        g_twi_send_prebuf[0] = buf[0];
+        g_twi_send_prebuf[1] = buf[1] + 6;
+        g_twi_send_prebuf[2] = 0;
+        g_twi_send_prebuf[3] = 0;
+        g_twi_send_prebuf[4] = 1;
+        memcpy(&g_twi_send_prebuf[5], buf, buf[1]);
+        g_twi_send_prebuf[5+buf[1]] = 0x00;
+        g_twi_send_prebuf_n = serialBufferIndex + 6;
         serialBufferIndex = 0;
         return;
       }

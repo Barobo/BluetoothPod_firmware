@@ -154,7 +154,8 @@ ISR(TWI_vect)
           g_twi_sr_recv_index, g_twi_sr_recv_buffer[0]);
       serialWriteString(buf);
       */
-      for(i = 0; i < g_twi_sr_recv_index; i++) {
+      /* No need to send zigbee portion of message */
+      for(i = 5; i < g_twi_sr_recv_index-1; i++) {
         g_serialBufferOut[(g_serialBufferOutN + g_serialBufferOutIndex)%SERIAL_BUFFER_SIZE] = 
           g_twi_sr_recv_buffer[i];
         g_serialBufferOutN++;
