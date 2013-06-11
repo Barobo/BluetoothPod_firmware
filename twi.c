@@ -1,6 +1,7 @@
 #include "twi.h"
 #include <stdio.h>
 #include "serial.h"
+#include "commands.h"
 
 volatile enum twi_state_e g_twi_state;
 volatile enum twi_operation_e g_twi_operation = TWI_OP_NONE;
@@ -24,6 +25,7 @@ ISR(TWI_vect)
   uint8_t sreg = SREG;
   int i;
   static uint8_t bytes_sent;
+  static uint8_t *current_register;
   //sprintf(buf, "TW_STATUS: 0x%02x\n", TW_STATUS);
   //_delay_ms(10);
   //serialWriteString(buf);
@@ -154,17 +156,32 @@ ISR(TWI_vect)
           g_twi_sr_recv_index, g_twi_sr_recv_buffer[0]);
       serialWriteString(buf);
       */
-      /* No need to send zigbee portion of message */
-      for(i = 5; i < g_twi_sr_recv_index-1; i++) {
-        g_serialBufferOut[(g_serialBufferOutN + g_serialBufferOutIndex)%SERIAL_BUFFER_SIZE] = 
-          g_twi_sr_recv_buffer[i];
-        g_serialBufferOutN++;
+      if(g_twi_sr_recv_buffer[0] == MSG_REGACCESS) {
+        current_register = g_twi_sr_recv_buffer[1];
+        for(i = 2; i < g_twi_sr_recv_index; i++) {
+          *current_register = g_twi_sr_recv_buffer[i];
+          current_register++;
+        }
+      } else {
+        /* No need to send zigbee portion of message */
+        for(i = 5; i < g_twi_sr_recv_index-1; i++) {
+          g_serialBufferOut[(g_serialBufferOutN + g_serialBufferOutIndex)%SERIAL_BUFFER_SIZE] = 
+            g_twi_sr_recv_buffer[i];
+          g_serialBufferOutN++;
+        }
       }
       g_twi_return_status = 0;
       TWCR &= ~(1<<TWSTA | 1<<TWSTO);
       TWCR |= 1<<TWINT | 1<<TWEA;
       goto twi_reset_state_vars;
       break;
+
+    case TW_ST_SLA_ACK:
+      TWDR = *current_register;
+      current_register++;
+      TWCR &= ~(1<<TWSTO);
+      TWCR |= (1<<TWINT | 1<<TWEA);
+      return;
     case TW_BUS_ERROR:
       TWCR &= ~(1<<TWSTA);
       TWCR |= (1<<TWSTO)|(1<<TWINT);
