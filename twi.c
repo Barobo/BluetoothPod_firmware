@@ -1,5 +1,6 @@
 #include "twi.h"
 #include <stdio.h>
+#include <util/delay.h>
 #include "serial.h"
 #include "commands.h"
 
@@ -177,11 +178,24 @@ ISR(TWI_vect)
       break;
 
     case TW_ST_SLA_ACK:
+    case TW_ST_DATA_ACK:
+      if(
+          (current_register == 0x78) || 
+          (current_register == 0x79)
+        )
+      {
+        while(ADCSRA & (1<<ADSC));
+      }
       TWDR = *current_register;
       current_register++;
       TWCR &= ~(1<<TWSTO);
       TWCR |= (1<<TWINT | 1<<TWEA);
       return;
+    case TW_ST_DATA_NACK:
+    case TW_ST_LAST_DATA:
+      TWCR &= ~(1<<TWSTO | 1<<TWSTA);
+      TWCR |= 1<<TWINT | 1<<TWEA;
+      break;
     case TW_BUS_ERROR:
       TWCR &= ~(1<<TWSTA);
       TWCR |= (1<<TWSTO)|(1<<TWINT);

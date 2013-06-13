@@ -39,6 +39,10 @@ void AVRInit(void)
   OCR1A = (F_CPU / (256000) );
   ICR1 = (F_CPU / (256000) );
 
+  /* Set PC0 to input */
+  DDRC &= ~(1<<0);
+  PORTC &= ~(1<<0);
+
   sei();
 
 } // AVRInit
@@ -54,6 +58,27 @@ void delay(unsigned long ms)
   while(g_millis <= endtime);
 }
 #pragma GCC optimize ("02")
+
+uint16_t getADC(uint8_t adc)
+{
+  uint16_t value = 0;
+  /* Initialize ADC */
+  /* Set prescalar to 128, conversion frequency of 125kHz */
+  //ADCSRC = 10<<ADSUT0;
+
+  // Select the right channel
+  ADMUX &= 0xE0;
+  ADMUX |= adc;
+  ADCSRA |= (1<<ADPS2) | (1<<ADPS1) | (1<<ADPS0) | (1<<ADEN) | (1<<ADSC); // Set prescalar, enable
+  // Wait for the conversion to finish 
+  while(ADCSRA & (1<<ADSC));
+  // Compose the return value
+  //value = ADC;
+  value = ADCL;
+  value |= (ADCH & 0x03) << 8;
+  //ADCSRA = 0;
+  return value;
+}
 
 int main(void)
 {
