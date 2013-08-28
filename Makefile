@@ -95,16 +95,16 @@ ctags:
   $(STACK_PATH)/sys/inc/* *.c
 
 loadflash0:
-	avrdude -c avrisp2 -P /dev/ttyACM0 -p m328p -e -U fl:w:$(CONFIG)/main.hex
+	avrdude -c avrisp2 -P /dev/ttyACM0 -p m328p -e -U fl:w:$(CONFIG)/main.hex -U lfuse:w:0xff:m
 
 loadflash1:
-	avrdude -c avrisp2 -P /dev/ttyACM1 -p m328p -e -U fl:w:$(CONFIG)/main.hex
+	avrdude -c avrisp2 -P /dev/ttyACM1 -p m328p -e -U fl:w:$(CONFIG)/main.hex -U lfuse:w:0xff:m
 
 loadflash2:
-	avrdude -c avrisp2 -P /dev/ttyACM2 -p m328p -e -U fl:w:$(CONFIG)/main.hex
+	avrdude -c avrisp2 -P /dev/ttyACM2 -p m328p -e -U fl:w:$(CONFIG)/main.hex -U lfuse:w:0xff:m
 
 loadflash3:
-	avrdude -c avrisp2 -P /dev/ttyACM3 -p m328p -e -U fl:w:$(CONFIG)/main.hex
+	avrdude -c avrisp2 -P /dev/ttyACM3 -p m328p -e -U fl:w:$(CONFIG)/main.hex -U lfuse:w:0xff:m
 #avrdude -c avrispv2 -P /dev/ttyACM0 -p m128rfa1 -e -U lfuse:w:$(LFUSE):m -b 19200 
 
 rftest0:
