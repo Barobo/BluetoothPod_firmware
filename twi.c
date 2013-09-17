@@ -78,7 +78,7 @@ ISR(TWI_vect)
           TWCR &= ~(1<<TWSTA);
           TWCR |= (1<<TWSTO | 1<<TWINT);
           g_twi_return_status = 0;
-          goto twi_reset_state_vars;
+          //goto twi_reset_state_vars;
         }
       } else {
         /* Not all data has been sent yet. Send another byte */
