@@ -3,6 +3,7 @@
 #include <util/delay.h>
 #include "serial.h"
 #include "commands.h"
+#include "twi_commands.h"
 
 volatile enum twi_state_e g_twi_state;
 volatile enum twi_operation_e g_twi_operation = TWI_OP_NONE;
@@ -20,13 +21,12 @@ volatile uint8_t g_twi_sr_recv_index = 0;
 
 volatile uint8_t g_twi_send_prebuf[128];
 volatile uint8_t g_twi_send_prebuf_n = 0;
+volatile uint8_t *g_current_register;
 
 ISR(TWI_vect)
 {
   uint8_t sreg = SREG;
-  int i;
   static uint8_t bytes_sent;
-  static uint8_t *current_register;
   //sprintf(buf, "TW_STATUS: 0x%02x\n", TW_STATUS);
   //_delay_ms(10);
   //serialWriteString(buf);
@@ -157,20 +157,8 @@ ISR(TWI_vect)
           g_twi_sr_recv_index, g_twi_sr_recv_buffer[0]);
       serialWriteString(buf);
       */
-      if(g_twi_sr_recv_buffer[0] == MSG_REGACCESS) {
-        current_register = g_twi_sr_recv_buffer[1];
-        for(i = 2; i < g_twi_sr_recv_index; i++) {
-          *current_register = g_twi_sr_recv_buffer[i];
-          current_register++;
-        }
-      } else {
-        /* No need to send zigbee portion of message */
-        for(i = 5; i < g_twi_sr_recv_index-1; i++) {
-          g_serialBufferOut[(g_serialBufferOutN + g_serialBufferOutIndex)%SERIAL_BUFFER_SIZE] = 
-            g_twi_sr_recv_buffer[i];
-          g_serialBufferOutN++;
-        }
-      }
+      /* Process the message contained in g_twi_sr_recv_buffer */
+      processTWIMessage(); 
       g_twi_return_status = 0;
       TWCR &= ~(1<<TWSTA | 1<<TWSTO);
       TWCR |= 1<<TWINT | 1<<TWEA;
@@ -180,14 +168,14 @@ ISR(TWI_vect)
     case TW_ST_SLA_ACK:
     case TW_ST_DATA_ACK:
       if(
-          (current_register == 0x78) || 
-          (current_register == 0x79)
+          ((unsigned)g_current_register == 0x78) || 
+          ((unsigned)g_current_register == 0x79)
         )
       {
         while(ADCSRA & (1<<ADSC));
       }
-      TWDR = *current_register;
-      current_register++;
+      TWDR = *g_current_register;
+      g_current_register++;
       TWCR &= ~(1<<TWSTO);
       TWCR |= (1<<TWINT | 1<<TWEA);
       return;
@@ -314,5 +302,128 @@ void TWIHandler()
   if(g_twi_send_prebuf_n) {
     TWISend(0x01, g_twi_send_prebuf, g_twi_send_prebuf_n);
     g_twi_send_prebuf_n = 0;
+  }
+}
+
+void processTWIMessage()
+{
+  int i;
+  if(g_twi_sr_recv_buffer[0] = TWIMSG_HEADER) {
+    switch(g_twi_sr_recv_buffer[1]) {
+      case TWIMSG_REGACCESS:
+        g_current_register = g_twi_sr_recv_buffer[2];
+        for(i = 3; i < g_twi_sr_recv_index; i++) {
+          *g_current_register = g_twi_sr_recv_buffer[i];
+          g_current_register++;
+        }
+        break;
+      case TWIMSG_SET_PIN_MODE:
+        setPinMode(g_twi_sr_recv_buffer[2], g_twi_sr_recv_buffer[3]);
+        break;
+      case TWIMSG_DIGITAL_WRITE_PIN:
+        digitalWritePin(g_twi_sr_recv_buffer[2], g_twi_sr_recv_buffer[3]);
+        break;
+      case TWIMSG_DIGITAL_READ_PIN:
+        digitalReadPin(g_twi_sr_recv_buffer[2]);
+        break;
+      case TWIMSG_ANALOG_WRITE_PIN:
+        analogWritePin(g_twi_sr_recv_buffer[2], g_twi_sr_recv_buffer[3]);
+        break;
+      case TWIMSG_ANALOG_READ_PIN:
+        analogReadPin(g_twi_sr_recv_buffer[2]);
+        break;
+      case TWIMSG_ANALOG_REF:
+        analogSetRef(g_twi_sr_recv_buffer[2]);
+        break;
+    }
+  } else {
+    /* This message is probably a bluetooth comms message: forward it to the serial */
+    /* No need to send zigbee portion of message, start at i=5 */
+    for(i = 5; i < g_twi_sr_recv_index-1; i++) {
+      g_serialBufferOut[(g_serialBufferOutN + g_serialBufferOutIndex)%SERIAL_BUFFER_SIZE] = 
+        g_twi_sr_recv_buffer[i];
+      g_serialBufferOutN++;
+    }
+  }
+}
+
+void setPinMode(int pin, int mode)
+{
+  switch(mode) {
+    case PINMODE_INPUT:
+      *DDR_REGS[pin] &= ~(1<<PINS[pin]);
+      *PORT_REGS[pin] &= ~(1<<PINS[pin]);
+      break;
+    case PINMODE_OUTPUT:
+      *DDR_REGS[pin] |= (1<<PINS[pin]);
+      *PORT_REGS[pin] &= ~(1<<PINS[pin]);
+      break;
+    case PINMODE_INPUTPULLUP:
+      *DDR_REGS[pin] &= ~(1<<PINS[pin]);
+      *PORT_REGS[pin] |= (1<<PINS[pin]);
+      break;
+  }
+}
+
+void digitalWritePin(int pin, int value)
+{
+  if(value)
+    *PORT_REGS[pin] |= (1<<PINS[pin]);
+  else
+    *PORT_REGS[pin] &= ~(1<<PINS[pin]);
+}
+
+void digitalReadPin(int pin)
+{
+  static uint8_t value;
+  if( *PIN_REGS[pin] & (1<<PINS[pin]) )
+    value = 1;
+  else
+    value = 0;
+  g_current_register = &value;
+}
+
+void analogWritePin(int pin, uint8_t value)
+{
+  /* Get the PWM going */
+  *PWM_COM_REGS[pin] |= (1<<PWM_COM1_PIN[pin]);
+  *PWM_COM_REGS[pin] &= ~(1<<PWM_COM0_PIN[pin]);
+  /* Set the value */
+  *PWM_OCR_REGS[pin] = value;
+}
+
+void analogReadPin(int pin)
+{
+  static uint8_t value_reg[2];
+  /* Select the correct channel */
+  ADMUX &= 0xf0;
+  ADMUX |= (pin&0x0f);
+  /* Set the prescalar and enable the ADC */
+  ADCSRA |= (1<<ADPS2) | (1<<ADPS1) | (1<<ADPS0) | (1<<ADEN) | (1<<ADSC); // Set prescalar, enable
+  // Wait for the conversion to finish 
+  while(ADCSRA & (1<<ADSC));
+  
+  value_reg[1] = ADCL;
+  value_reg[0] = ADCH;
+  char buf[80];
+  sprintf(buf, "%d 0x%x 0x%x\r\n", pin, value_reg[0], value_reg[1]);
+  serialWriteString(buf);
+  //ADCSRA = 0;
+  //return value;
+  g_current_register = &value_reg[0];
+}
+
+void analogSetRef(int ref)
+{
+  ADMUX &= ~(0x3F);
+  switch(ref) {
+    case AREF_DEFAULT:
+      break;
+    case AREF_INTERNAL:
+      ADMUX |= (0x10);
+      break;
+    case AREF_INTERNAL1V1:
+      ADMUX |= (0xC0);
+      break;
   }
 }
