@@ -31,6 +31,7 @@ extern volatile uint8_t* PIN_REGS[14];
 extern uint8_t PINS[14];
 
 extern volatile uint8_t* PWM_COM_REGS[14];
+extern volatile uint8_t* PWM_COMB_REGS[14];
 extern uint8_t PWM_COM0_PIN[14];
 extern uint8_t PWM_COM1_PIN[14];
 extern volatile uint8_t* PWM_OCR_REGS[14];
@@ -48,6 +49,7 @@ void TWIHandler();
 void processTWIMessage();
 
 void setPinMode(int pin, int mode);
+void digitalReadPin(int pin);
 void digitalWritePin(int pin, int value);
 void analogWritePin(int pin, uint8_t value);
 void analogReadPin(int pin);

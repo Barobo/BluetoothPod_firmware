@@ -355,8 +355,8 @@ void setPinMode(int pin, int mode)
       *PORT_REGS[pin] &= ~(1<<PINS[pin]);
       break;
     case PINMODE_OUTPUT:
-      *DDR_REGS[pin] |= (1<<PINS[pin]);
       *PORT_REGS[pin] &= ~(1<<PINS[pin]);
+      *DDR_REGS[pin] |= (1<<PINS[pin]);
       break;
     case PINMODE_INPUTPULLUP:
       *DDR_REGS[pin] &= ~(1<<PINS[pin]);
@@ -388,6 +388,12 @@ void analogWritePin(int pin, uint8_t value)
   /* Get the PWM going */
   *PWM_COM_REGS[pin] |= (1<<PWM_COM1_PIN[pin]);
   *PWM_COM_REGS[pin] &= ~(1<<PWM_COM0_PIN[pin]);
+  /* Start the PWM clock with 64 prescalar */
+  if( (pin == 3) || (pin == 11) ) {
+    *PWM_COMB_REGS[pin] |= 0x04;
+  } else {
+    *PWM_COMB_REGS[pin] |= 0x03;
+  }
   /* Set the value */
   *PWM_OCR_REGS[pin] = value;
 }
@@ -405,9 +411,6 @@ void analogReadPin(int pin)
   
   value_reg[1] = ADCL;
   value_reg[0] = ADCH;
-  char buf[80];
-  sprintf(buf, "%d 0x%x 0x%x\r\n", pin, value_reg[0], value_reg[1]);
-  serialWriteString(buf);
   //ADCSRA = 0;
   //return value;
   g_current_register = &value_reg[0];

@@ -21,6 +21,7 @@ volatile uint8_t* PIN_REGS[14];
 uint8_t PINS[14];
 
 volatile uint8_t* PWM_COM_REGS[14];
+volatile uint8_t* PWM_COMB_REGS[14];
 uint8_t PWM_COM0_PIN[14];
 uint8_t PWM_COM1_PIN[14];
 volatile uint8_t* PWM_OCR_REGS[14];
@@ -61,7 +62,14 @@ void AVRInit(void)
   TCCR0A |= ((1<<WGM00)|(1<<WGM01));
   TCCR1A |= (1<<WGM10);
   TCCR1B |= (1<<WGM12);
-  TCCR1A |= ((1<<WGM20)|(1<<WGM21));
+  TCCR2A |= ((1<<WGM20)|(1<<WGM21));
+  /* DEBUG 
+  DDRD |= (1<<3);
+  PORTD &= ~(1<<3);
+  TCCR2A |= (1<<COM2B1);
+  TCCR2B |= (1<<CS22);
+  OCR2B = 255;
+  */
 
   /* Initialize ADC to default setting */
   ADMUX = 0x40;
@@ -114,6 +122,13 @@ void PortsInit(void)
   PWM_COM_REGS[9] = &TCCR1A;
   PWM_COM_REGS[10] = &TCCR1A;
   PWM_COM_REGS[11] = &TCCR2A;
+
+  PWM_COMB_REGS[3] = &TCCR2B;
+  PWM_COMB_REGS[5] = &TCCR0B;
+  PWM_COMB_REGS[6] = &TCCR0B;
+  PWM_COMB_REGS[9] = &TCCR1B;
+  PWM_COMB_REGS[10] = &TCCR1B;
+  PWM_COMB_REGS[11] = &TCCR2B;
 
   PWM_COM0_PIN[3] = 4;
   PWM_COM1_PIN[3] = 5;
@@ -189,7 +204,6 @@ int main(void)
 	AVRInit();
 	USARTInit();
   TWIInit();
-  serialWriteString("Startup.\n");
   while(1) {
     serialHandler();
     //TWISend(0x01, buf, buf[1]);
