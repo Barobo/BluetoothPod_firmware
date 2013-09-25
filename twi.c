@@ -308,7 +308,7 @@ void TWIHandler()
 void processTWIMessage()
 {
   int i;
-  if(g_twi_sr_recv_buffer[0] = TWIMSG_HEADER) {
+  if(g_twi_sr_recv_buffer[0] == TWIMSG_HEADER) {
     switch(g_twi_sr_recv_buffer[1]) {
       case TWIMSG_REGACCESS:
         g_current_register = g_twi_sr_recv_buffer[2];

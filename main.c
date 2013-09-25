@@ -187,6 +187,10 @@ uint16_t getADC(uint8_t adc)
   value |= (ADCH & 0x03) << 8;
   //ADCSRA = 0;
   return value;
+
+  /* Set TWI pins to input, PC4 and PC5, to input */
+  DDRC &= ~(1<<4 | 1<<5);
+  PORTC &= ~(1<<4 | 1<<5);
 }
 
 int main(void)
