@@ -339,10 +339,18 @@ void processTWIMessage()
   } else {
     /* This message is probably a bluetooth comms message: forward it to the serial */
     /* No need to send zigbee portion of message, start at i=5 */
-    for(i = 5; (i-5) < g_twi_sr_recv_buffer[6] ; i++) {
-      g_serialBufferOut[(g_serialBufferOutN + g_serialBufferOutIndex)%SERIAL_BUFFER_SIZE] = 
-        g_twi_sr_recv_buffer[i];
-      g_serialBufferOutN++;
+    if((g_mobotMode == 0) || (g_mobotMode == 1) ) {
+      for(i = 5; (i-5) < g_twi_sr_recv_buffer[6] ; i++) {
+        g_serialBufferOut[(g_serialBufferOutN + g_serialBufferOutIndex)%SERIAL_BUFFER_SIZE] = 
+          g_twi_sr_recv_buffer[i];
+        g_serialBufferOutN++;
+      }
+    } else {
+      for(i = 0; i < g_twi_sr_recv_buffer[1] ; i++) {
+        g_serialBufferOut[(g_serialBufferOutN + g_serialBufferOutIndex)%SERIAL_BUFFER_SIZE] = 
+          g_twi_sr_recv_buffer[i];
+        g_serialBufferOutN++;
+      }
     }
   }
 }

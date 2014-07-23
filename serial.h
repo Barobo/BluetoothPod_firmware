@@ -41,6 +41,7 @@ extern volatile int g_serialBufferIndex;
 extern volatile int g_serialBufferOutN;
 extern volatile int g_serialBufferOutIndex;
 extern volatile uint8_t g_serialBufferOut[SERIAL_BUFFER_SIZE];
+extern volatile uint8_t g_mobotMode;
 
 void USARTInit(void);
 unsigned char serialReadByteDIRECT(void);

@@ -22,6 +22,8 @@ uint16_t* g_queriedAddresses;
 char** g_queriedIDs;
 volatile uint8_t g_numQueriedAddresses;
 
+volatile uint8_t g_mobotMode = 0; // 0:Uninitialized, 1:old Mobot protocol, 2:Linkbot TTY protocol
+
 void USARTInit(void)
 {
 	// Initialize the serial port 
@@ -141,6 +143,14 @@ void serialHandler()
     if(serialBufferIndex > 1) {
       if(buf[1] == serialBufferIndex) {
         /* Found end of stream. Now parse */
+        if(buf[0] == 0x30) 
+        {
+          if(buf[1] == 3) {
+            g_mobotMode = 1;
+          } else {
+            g_mobotMode = 2;
+          }
+        }
         /* Put the data on the I2C bus */
         //serialWriteString("twi send\n");
         //delay(500);
@@ -151,15 +161,21 @@ void serialHandler()
          * zigbee address and channel. Here, we have to append/prepend the
          * zigbee portion of the message before passing it on to the Linkbot.
          * */
-        g_twi_send_prebuf[0] = buf[0];
-        g_twi_send_prebuf[1] = buf[1] + 6;
-        g_twi_send_prebuf[2] = 0;
-        g_twi_send_prebuf[3] = 0;
-        g_twi_send_prebuf[4] = 1;
-        memcpy(&g_twi_send_prebuf[5], buf, buf[1]);
-        g_twi_send_prebuf[5+buf[1]] = 0x00;
-        g_twi_send_prebuf_n = serialBufferIndex + 6;
-        serialBufferIndex = 0;
+        if(g_mobotMode == 1) {
+          g_twi_send_prebuf[0] = buf[0];
+          g_twi_send_prebuf[1] = buf[1] + 6;
+          g_twi_send_prebuf[2] = 0;
+          g_twi_send_prebuf[3] = 0;
+          g_twi_send_prebuf[4] = 1;
+          memcpy(&g_twi_send_prebuf[5], buf, buf[1]);
+          g_twi_send_prebuf[5+buf[1]] = 0x00;
+          g_twi_send_prebuf_n = serialBufferIndex + 6;
+          serialBufferIndex = 0;
+        } else {
+          memcpy(&g_twi_send_prebuf[0], buf, buf[1]);
+          g_twi_send_prebuf_n = serialBufferIndex;
+          serialBufferIndex = 0;
+        }
         return;
       }
     }
